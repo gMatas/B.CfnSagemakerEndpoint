@@ -45,14 +45,16 @@ def test_sagemaker_endpoint_update_EXPECT_updated_model_result():
         'Bucket': models_bucket.name,
         'Key': f'models/{next_model_name}/model.tar.gz'
     }
-    models_bucket.copy(copy_source, 'active_model/model.tar.gz')
+    model_destination_key = 'active_model/model.tar.gz'
+    models_bucket.Object(model_destination_key).delete()
+    models_bucket.copy(copy_source, model_destination_key)
 
     wait_time = test_endpoint_refresh_wait_time + 60
     force_print(f'Waiting {wait_time} seconds for endpoint refresh to initiate its update...')
     time.sleep(wait_time)
 
     # Wait for SageMaker endpoint to finish updating.
-    force_print('Updating SageMaker endpoint. This might take a while - get some coffee...')
+    force_print('Waiting for SageMaker endpoint to be in service. This might take a while - get some coffee...')
     sagemaker_client = boto_session.client('sagemaker')
     waiter = sagemaker_client.get_waiter('endpoint_in_service')
     waiter.wait(
@@ -62,7 +64,7 @@ def test_sagemaker_endpoint_update_EXPECT_updated_model_result():
             'MaxAttempts': 120
         }
     )
-    force_print('SageMaker endpoint updated!')
+    force_print('SageMaker endpoint is in service.')
 
     result = invoke_endpoint()
     message = result['message']
