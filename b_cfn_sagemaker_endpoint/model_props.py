@@ -17,7 +17,7 @@ class ModelProps:
     ``props``
         Properties for defining a ``AWS::SageMaker::Model``.
     ``custom_id``
-        Custom CDK resource id. By default id is generated automatically.
+        Optional. Custom CDK resource id. By default id is generated automatically.
     """
 
     props: CfnModelProps

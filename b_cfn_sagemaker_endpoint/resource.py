@@ -1,6 +1,6 @@
 from typing import Iterable
 
-from aws_cdk.aws_s3 import Bucket, EventType
+from aws_cdk.aws_s3 import Bucket, EventType, NotificationKeyFilter
 from aws_cdk.aws_sagemaker import CfnEndpointConfigProps, CfnEndpointProps, CfnEndpoint, CfnEndpointConfig
 from aws_cdk.core import Construct
 
@@ -25,8 +25,8 @@ class SagemakerEndpoint(Construct):
     :param endpoint_config_props: Properties for defining a ``AWS::SageMaker::EndpointConfig``.
     :param models_props: SageMaker models properties.
     :param models_bucket: Source S3 bucket for models data.
-    :param bucket_events: Models data bucket events. By default, all ``models_bucket``
-        objects events (``OBJECT_CREATED``) are handled.
+    :param bucket_events: Models data bucket events. By default, models bucket ``OBJECT_CREATED``
+        events are handled, only for "*.tar.gz" files.
     :param wait_time: Time to wait before endpoint is updated. It is useful to wait before
         handling s3 bucket events as there can be multiple other in-flight events coming.
         Default is 60 seconds.
@@ -51,31 +51,21 @@ class SagemakerEndpoint(Construct):
 
         if bucket_events is None:
             bucket_events = [
-                BucketEvent(EventType.OBJECT_CREATED)
+                BucketEvent(EventType.OBJECT_CREATED, [NotificationKeyFilter(suffix='.tar.gz')])
             ]
 
         super().__init__(scope, id)
 
         models = [props.bind(self) for props in models_props]
-        endpoint_config_a = CfnEndpointConfig(
-            scope=self,
-            id=f'{id}AConfig',
-            async_inference_config=endpoint_config_props.async_inference_config,
-            data_capture_config=endpoint_config_props.data_capture_config,
-            endpoint_config_name=f'{endpoint_config_props.endpoint_config_name}-a',
-            kms_key_id=endpoint_config_props.kms_key_id,
-            production_variants=endpoint_config_props.production_variants,
-            tags=endpoint_config_props.tags,
+        endpoint_config_a = self.__create_endpoint_config(
+            resource_id=f'{id}AConfig',
+            name=f'{endpoint_config_props.endpoint_config_name}-a',
+            props=endpoint_config_props
         )
-        endpoint_config_b = CfnEndpointConfig(
-            scope=self,
-            id=f'{id}BConfig',
-            async_inference_config=endpoint_config_props.async_inference_config,
-            data_capture_config=endpoint_config_props.data_capture_config,
-            endpoint_config_name=f'{endpoint_config_props.endpoint_config_name}-b',
-            kms_key_id=endpoint_config_props.kms_key_id,
-            production_variants=endpoint_config_props.production_variants,
-            tags=endpoint_config_props.tags,
+        endpoint_config_b = self.__create_endpoint_config(
+            resource_id=f'{id}BConfig',
+            name=f'{endpoint_config_props.endpoint_config_name}-b',
+            props=endpoint_config_props
         )
         endpoint_config_a.node.add_dependency(*models)
         endpoint_config_b.node.add_dependency(*models)
@@ -112,6 +102,18 @@ class SagemakerEndpoint(Construct):
     @property
     def attr_endpoint_name(self) -> str:
         return self.__endpoint.attr_endpoint_name
+
+    def __create_endpoint_config(self, resource_id: str, name: str, props: CfnEndpointConfigProps) -> CfnEndpointConfig:
+        return CfnEndpointConfig(
+            scope=self,
+            id=resource_id,
+            async_inference_config=props.async_inference_config,
+            data_capture_config=props.data_capture_config,
+            endpoint_config_name=name,
+            kms_key_id=props.kms_key_id,
+            production_variants=props.production_variants,
+            tags=props.tags,
+        )
 
 
 __all__ = [

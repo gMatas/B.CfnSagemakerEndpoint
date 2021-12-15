@@ -10,10 +10,12 @@ from b_cfn_s3_large_deployment.deployment_source import AssetDeploymentSource
 from b_cfn_s3_large_deployment.resource import S3LargeDeploymentResource
 
 from b_cfn_sagemaker_endpoint import SagemakerEndpoint, ModelProps, BucketEvent
+from b_cfn_sagemaker_endpoint_tests.integration.utils.model_assets_utils import create_asset_options
 
 
 class Infrastructure(TestingStack):
     TEST_SAGEMAKER_ENDPOINT_NAME_KEY = 'TestSagemakerEndpointKey'
+    TEST_MODELS_BUCKET_NAME = 'TestModelsBucketName'
 
     def __init__(self, scope: Construct):
         super().__init__(scope=scope)
@@ -25,6 +27,46 @@ class Infrastructure(TestingStack):
             auto_delete_objects=True,
             removal_policy=RemovalPolicy.DESTROY
         )
+
+        # Upload two dummy SageMaker models to the test bucket, to be used
+        # as a cache of objects for further interactions via boto3's S3 API.
+        models_deployment = S3LargeDeploymentResource(
+            scope=self,
+            name=f'{self.global_prefix()}BModelsDeployment',
+            sources=[
+                AssetDeploymentSource(
+                    path=os.path.join(os.path.dirname(__file__), 'data/models/v1'),
+                    options=create_asset_options(model_name='v1')
+                ),
+                AssetDeploymentSource(
+                    path=os.path.join(os.path.dirname(__file__), 'data/models/v2'),
+                    options=create_asset_options(model_name='v2')
+                )
+            ],
+            destination_bucket=test_bucket,
+            props=DeploymentProps(
+                destination_key_prefix='models/',
+                retain_on_delete=False
+            )
+        )
+        # Upload one of the two dummy SageMaker models to the test bucket, to be used
+        # as the initial endpoint model.
+        active_model_deployment = S3LargeDeploymentResource(
+            scope=self,
+            name=f'{self.global_prefix()}BActiveModelDeployment',
+            sources=[
+                AssetDeploymentSource(
+                    path=os.path.join(os.path.dirname(__file__), 'data/models/v1'),
+                    options=create_asset_options(model_name='v1')
+                )
+            ],
+            destination_bucket=test_bucket,
+            props=DeploymentProps(
+                destination_key_prefix='active_model/',
+                retain_on_delete=False
+            )
+        )
+        active_model_deployment.node.add_dependency(models_deployment)
 
         test_role = Role(
             scope=self,
@@ -58,7 +100,7 @@ class Infrastructure(TestingStack):
                             effect=Effect.ALLOW,
                             resources=[
                                 test_bucket.bucket_arn,
-                                test_bucket.arn_for_objects('models/*')
+                                test_bucket.arn_for_objects('active_model/*')
                             ]
                         )
                     ]
@@ -66,22 +108,8 @@ class Infrastructure(TestingStack):
             }
         )
 
-        # Upload dummy SageMaker model to the test bucket.
-        test_dummy_model_deployment = S3LargeDeploymentResource(
-            scope=self,
-            name=f'{self.global_prefix()}BDummyModelDeployment',
-            sources=[
-                AssetDeploymentSource(os.path.join(os.path.dirname(__file__), 'data/models'))
-            ],
-            destination_bucket=test_bucket,
-            props=DeploymentProps(
-                destination_key_prefix='models/',
-                retain_on_delete=False
-            )
-        )
-
         # Configure SageMaker test dummy model.
-        dummy_model_data_s3_url = f's3://{test_bucket.bucket_name}/models/dummy_model/model.tar.gz'
+        dummy_model_data_s3_url = f's3://{test_bucket.bucket_name}/active_model/model.tar.gz'
         dummy_model_props = ModelProps(CfnModelProps(
             execution_role_arn=test_role.role_arn,
             model_name=f'{self.global_prefix()}-b-sagemaker-endpoint-test-dummy'.lower(),
@@ -128,10 +156,11 @@ class Infrastructure(TestingStack):
             models_bucket=test_bucket,
             bucket_events=[
                 BucketEvent(EventType.OBJECT_CREATED, [
-                    NotificationKeyFilter(prefix='models/')
+                    NotificationKeyFilter(prefix='active_model/', suffix='.tar.gz')
                 ])
             ]
         )
-        endpoint.node.add_dependency(test_dummy_model_deployment)
+        endpoint.node.add_dependency(active_model_deployment)
 
         self.add_output(self.TEST_SAGEMAKER_ENDPOINT_NAME_KEY, endpoint.endpoint_name)
+        self.add_output(self.TEST_MODELS_BUCKET_NAME, test_bucket.bucket_name)
