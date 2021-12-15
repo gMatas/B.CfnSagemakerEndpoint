@@ -22,7 +22,7 @@ setup(
         'b_cfn_sagemaker_endpoint_tests.*',
     ]),
     description=(
-        'AWS CloudFormation resource that handles the deployment and update of SageMaker models endpoint.'
+        'AWS CloudFormation resource that handles the deployment and updates of SageMaker models endpoint.'
     ),
     long_description=README + '\n\n' + HISTORY,
     long_description_content_type='text/markdown',

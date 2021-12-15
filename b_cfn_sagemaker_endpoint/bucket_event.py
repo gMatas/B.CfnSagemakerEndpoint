@@ -18,6 +18,9 @@ class BucketEvent:
         S3 notification event type.
     ``key_filters``
         Key filters that are applied to the target bucket.
+        For example, setting key filter suffix, specifies on which files changes, based on
+        file type, should endpoint be updated. This is useful if updates are required only
+        for SageMaker model objects, i.e.: "model.tar.gz".
     """
 
     event_type: EventType

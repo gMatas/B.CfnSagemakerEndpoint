@@ -54,8 +54,8 @@ pip install b-cfn-sagemaker-endpoint
 ### Usage & Examples
 
 This resource handles ``aws-cdk.aws-sagemaker`` library's resources: ``CnfModel``, ``CnfEndpointConfig`` & 
-``CnfEndpoint`` deployment. The user is tasked only to provide configurations for each of these items via their 
-properties, i.e.: ``CnfModelProps`` -> ``CnfModel``, that on themselves do not create any resources.
+``CnfEndpoint`` deployment. The user is required only to provide configurations for each of these items via 
+their properties, i.e.: ``CnfModelProps`` -> ``CnfModel``, that on themselves do not create any resources.
 
 To deploy a SageMaker model(-s) endpoint the following steps have to be taken:
 
@@ -66,14 +66,51 @@ To deploy a SageMaker model(-s) endpoint the following steps have to be taken:
         custom_id=..., # (optional) If not provided, it is generated automatically.
     )
     ```
+   **Note:** `CfnModelProps` require an execution role ARN. This role must have ``sagemaker.amazonaws.com`` set as the 
+   trusted entity that can assume it. In usual cases the following permissions are required:
+   ```json
+   {
+       "Version": "2012-10-17",
+       "Statement": [
+           {
+               "Action": [
+                   "cloudwatch:PutMetricData",
+                   "ecr:GetAuthorizationToken",
+                   "ecr:BatchCheckLayerAvailability",
+                   "ecr:GetDownloadUrlForLayer",
+                   "ecr:BatchGetImage",
+                   "logs:CreateLogStream",
+                   "logs:PutLogEvents",
+                   "logs:CreateLogGroup",
+                   "logs:DescribeLogStreams"
+               ],
+               "Resource": "*",
+               "Effect": "Allow"
+           },
+           {
+               "Action": [
+                   "s3:PutObject",
+                   "s3:ListBucket",
+                   "s3:GetObject",
+                   "s3:DeleteObject"
+               ],
+               "Resource": "*",
+               "Effect": "Allow"
+           }
+       ]
+   }
+   ```
+
 2. Setup SageMaker endpoint configuration properties as ``CfnEnpointConfigProps``:
     ```python
     example_endpoint_config_props = CfnEndpointConfigProps(...)
     ```
+   
 3. Configure SageMaker endpoint properties as ``CfnEnpointProps``:
     ```python
     example_endpoint_props = CfnEndpointProps(...)
     ```
+   
 4. Finally, setup ``B.CfnSagemakerEndpoint``'s ``SagemakerEndpoint`` resource using previously defined 
    properties:
     ```python
@@ -86,11 +123,19 @@ To deploy a SageMaker model(-s) endpoint the following steps have to be taken:
             example_model_props
         ],
         models_bucket=Bucket(...),
-        # Optional. If no explicit bucket events are provided, `EventType.OBJECT_CREATED` 
+        # (Optional) If no explicit bucket events are provided, `EventType.OBJECT_CREATED` 
         # events are emitted for all bucket objects.
         bucket_events=[
             BucketEvent(EventType.OBJECT_CREATED, [
-                NotificationKeyFilter(...)
+                NotificationKeyFilter(
+                    prefix=...,
+                    # (Optional) Setting suffix, specifies on which files changes, based on 
+                    # file type, should endpoint be updated. This is useful if updates are 
+                    # required only for SageMaker model objects, i.e.: "model.tar.gz". 
+                    # By default, if no bucket events are explicitly provided suffix is set 
+                    # to ".tar.gz".
+                    suffix='.tar.gz'
+                )
             ])
         ]
     )

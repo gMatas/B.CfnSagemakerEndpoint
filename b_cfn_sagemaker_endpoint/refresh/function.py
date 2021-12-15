@@ -75,5 +75,8 @@ class RefreshFunction(Function):
             ],
             timeout=Duration.minutes(15),
             max_event_age=Duration.seconds(60),
+            # This lambda function's concurrency must be limited to only single execution at a given
+            # time. This is because it is called by multiple asynchronous S3 bucket events, that can
+            # result in a race condition.
             reserved_concurrent_executions=1
         )
