@@ -8,6 +8,11 @@ from b_cfn_sagemaker_endpoint_tests.integration.infrastructure import Infrastruc
 
 
 def test_sagemaker_endpoint_update_EXPECT_updated_model_result():
+    def force_print(*text: str, **print_kwargs) -> None:
+        print_kwargs.update(flush=True)
+        print(*text, **print_kwargs)
+
+def test_sagemaker_endpoint_update_EXPECT_updated_model_result():
     def force_print(*text: str, **print_kwargs):
         print_kwargs.update(flush=True)
         print(*text, **print_kwargs)
