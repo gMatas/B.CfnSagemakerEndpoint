@@ -1,5 +1,9 @@
 # Release history
 
+### 0.0.3
+
+- Updated README.
+
 ### 0.0.2
 
 - Added testing of deployed SageMaker endpoint update/refresh feature.

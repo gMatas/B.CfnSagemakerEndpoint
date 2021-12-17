@@ -28,6 +28,7 @@ the community.
 
 - Python >= 3.8
 - Amazon Web Services (AWS)
+- Amazon SageMaker
 
 ### Assumptions
 
@@ -35,6 +36,10 @@ The project assumes that the person working with it have basic knowledge in pyth
 programming.
 
 ### Useful sources
+
+SageMaker documentation:
+- [Developer guide](https://docs.aws.amazon.com/sagemaker/latest/dg/whatis.html)
+- [AWS SDK for Python (Boto 3)](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html?icmpid=docs_sagemaker_lp)
 
 See code documentation for any additional sources and references.
 
@@ -139,7 +144,10 @@ To deploy a SageMaker model(-s) endpoint the following steps have to be taken:
                     suffix='.tar.gz'
                 )
             ])
-        ]
+        ],
+        # (Optional) Set this value to the max time (in seconds) for how long it will take 
+        # to upload updated contents to the S3 bucket. By default it is set to 60 seconds.
+        wait_time=...
     )
     ```
     
@@ -155,7 +163,8 @@ required.
 
 ### Testing
 
-ToDo
+For now, a single test is implemented to make sure that the SageMaker endpoint is automatically 
+updated with the latest model data found in the source S3 bucket.
 
 ### Contribution
 
